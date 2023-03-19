@@ -535,65 +535,62 @@ const blockWaiting = web3.eth.subscribe('newBlockHeaders', async function(error 
     console.log(parseInt(blockHeader.l1BlockNumber ?? '0'));
 
     // start of the script when the needed block is mined
-    if (parseInt(blockHeader.l1BlockNumber ?? '0') === blockNumber) {
+    if (parseInt(blockHeader.l1BlockNumber ?? '0') >= blockNumber) {
         blockWaiting.unsubscribe();
         console.log('Needed block mined, starting to claim tokens')
         
-        const main = async function() {
-            // Claiming tokens from the claimContract
-            const claimData = await claimContract.methods.claim(); // claim tx data
+        // Claiming tokens from the claimContract
+        const claimData = await claimContract.methods.claim(); // claim tx data
 
-            const claimTx = {
-                to: '0x67a24ce4321ab3af51c2d0a4801c3e111d88c9d9', // Claim contract address
-                data: claimData.encodeABI(),
-                gas: await claimData.estimateGas(),
-                gasPrice: await web3.eth.getGasPrice(),
-                nonce: await web3.eth.getTransactionCount(account.address),
-            };
-            console.log('Claim transaction created.');
+        const claimTx = {
+            to: '0x67a24ce4321ab3af51c2d0a4801c3e111d88c9d9', // Claim contract address
+            data: claimData.encodeABI(),
+            gas: 6000000000,
+            gasPrice: 1000000000,
+            nonce: await web3.eth.getTransactionCount(account.address),
+        };
+        console.log('Claim transaction created.');
 
-            const claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
-            console.log('Claim transaction signed');
+        const claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
+        console.log('Claim transaction signed');
 
-            const claimTxReceipt = await web3.eth.sendSignedTransaction(claimSignedTx.rawTransaction); // claim signed tx sending
-            console.log(`Claim transaction sent, hash: ${claimTxReceipt.transactionHash}`);
+        const claimTxReceipt = await web3.eth.sendSignedTransaction(claimSignedTx.rawTransaction); // claim signed tx sending
+        console.log(`Claim transaction sent, hash: ${claimTxReceipt.transactionHash}`);
 
-            // Depositing tokens to CEX account
-            const transferData = await arbiContract.methods.transfer(cexWallet, web3.utils.toWei(amount, 'ether')); // deposit tx data
+        // Depositing tokens to CEX account
+        const transferData = await arbiContract.methods.transfer(cexWallet, web3.utils.toWei(amount, 'ether')); // deposit tx data
+        
+        const tx = {
+            to: '0x912ce59144191c1204e64559fe8253a0e49e6548', // arbi token address
+            data: transferData.encodeABI(),
+            gas: 6000000000,
+            gasPrice: 1000000000,
+            nonce: await web3.eth.getTransactionCount(account.address),
+        };
+        console.log('Deposit transaction created.');
+    
+        const signedTx = await account.signTransaction(tx); // deposit tx signing
+        console.log('Deposit transaction signed.');
+    
+        const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction); // deposit signed tx sending
+        console.log(`Deposit transaction sent, hash: ${txReceipt.transactionHash}`);
+    
+        // checking token balance on cex account with an interval of 15 seconds
+        const notZeroBalance = setInterval(async function checkBalance() {
+            const accountInfo = await client.account();
+            console.log(accountInfo.data.balances.find(item => item.asset === 'ARB').free);
             
-            const tx = {
-                to: '0x912ce59144191c1204e64559fe8253a0e49e6548', // arbi token address
-                data: transferData.encodeABI(),
-                gas: await transferData.estimateGas(),
-                gasPrice: await web3.eth.getGasPrice(),
-                nonce: await web3.eth.getTransactionCount(account.address),
-            };
-            console.log('Deposit transaction created.');
-        
-            const signedTx = await account.signTransaction(tx); // deposit tx signing
-            console.log('Deposit transaction signed.');
-        
-            const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction); // deposit signed tx sending
-            console.log(`Deposit transaction sent, hash: ${txReceipt.transactionHash}`);
-        
-            // checking token balance on cex account with an interval of 15 seconds
-            const notZeroBalance = setInterval(async function checkBalance() {
-                const accountInfo = await client.account();
-                console.log(accountInfo.data.balances.find(item => item.asset === 'ARB').free);
-                
-                // making trade order when token balance > 10
-                if (accountInfo.data.balances.find(item => item.asset === 'ARB').free > 10) {
-                    const orderExecute = await client.newOrder(tradingPair, orderSide, orderType, {quantity: quantity});
-        
-                    console.log('Trade order executed')
-                    console.log(orderExecute);
-        
-                    clearTimeout(notZeroBalance);
-        
-                    process.exit()
-                }
-            }, 15000);
-        }
-        main();
+            // making trade order when token balance > 10
+            if (accountInfo.data.balances.find(item => item.asset === 'ARB').free > 10) {
+                const orderExecute = await client.newOrder(tradingPair, orderSide, orderType, {quantity: quantity});
+    
+                console.log('Trade order executed')
+                console.log(orderExecute);
+    
+                clearInterval(notZeroBalance);
+    
+                process.exit()
+            }
+        }, 1000);
     }
 })
