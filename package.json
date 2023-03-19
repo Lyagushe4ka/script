@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@binance/connector": "^2.0.1",
+    "web3": "^1.8.2"
+  }
+}
