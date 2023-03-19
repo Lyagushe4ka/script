@@ -1,8 +1,14 @@
 const Web3 = require('web3');
+const { Spot } = require('@binance/connector');
 
 // RPC imporing
 const url = ''; // YOUR_RPC !!!WEBSOCKET!!!
 const web3 = new Web3(new Web3.providers.WebsocketProvider(url));
+
+// Binance api
+const apiKey = ''; // YOUR_API_KEY
+const apiSecret = ''; // YOUR_API_SECRET
+const client = new Spot(apiKey, apiSecret);
 
 // wallet importing
 const privateKey = ''; // YOUR_PRIVATE_KEY
@@ -509,6 +515,11 @@ const arbiContract = new web3.eth.Contract([
     }
 ], "0x912ce59144191c1204e64559fe8253a0e49e6548");
 
+const tradingPair = 'ARBUSDT'; // CEX_TOKEN_PAIR
+const orderSide = 'SELL'; // CEX_ORDER_SIDE
+const orderType = 'MARKET'; // CEX_ORDER_TYPE
+const quantity = 1625; // CEX_TOKENS_AMOUNT (for order)
+
 const cexWallet = ''; // YOUR_CEX_ADDRESS
 const amount = 1625; // YOUR_TOKENS_AMOUNT (to transfer to cex)
 
@@ -563,5 +574,23 @@ const blockWaiting = web3.eth.subscribe('newBlockHeaders', async function(error 
     
         const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction); // deposit signed tx sending
         console.log(`Deposit transaction sent, hash: ${txReceipt.transactionHash}`);
+    
+        // checking token balance on cex account with an interval of 15 seconds
+        const notZeroBalance = setInterval(async function checkBalance() {
+            const accountInfo = await client.account();
+            console.log(accountInfo.data.balances.find(item => item.asset === 'ARB').free);
+            
+            // making trade order when token balance > 10
+            if (accountInfo.data.balances.find(item => item.asset === 'ARB').free > 10) {
+                const orderExecute = await client.newOrder(tradingPair, orderSide, orderType, {quantity: quantity});
+    
+                console.log('Trade order executed')
+                console.log(orderExecute);
+    
+                clearInterval(notZeroBalance);
+    
+                process.exit()
+            }
+        }, 1000);
     }
 })
