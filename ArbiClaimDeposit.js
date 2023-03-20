@@ -5,13 +5,13 @@ const url = ''; // YOUR_RPC !!!WEBSOCKET!!!
 const web3 = new Web3(new Web3.providers.WebsocketProvider(url));
 
 // wallet importing
-const privateKey = ''; // YOUR_PRIVATE_KEY
+const privateKey = ''; // YOUR_PRIVATE_KEY!!!!!
 const account = web3.eth.accounts.privateKeyToAccount('0x' + privateKey);
 web3.eth.accounts.wallet.add(account);
 web3.eth.defaultAccount = account.address;
 
 // claim contract data
-const claimContractAddress = '0x67a24ce4321ab3af51c2d0a4801c3e111d88c9d9';
+const claimContractAddress = '0x67a24ce4321ab3af51c2d0a4801c3e111d88c9d9'; // Claim contract address [CHECK AGAIN]
 const claimContractAbi = [{
     "inputs": [{
         "internalType": "contract IERC20VotesUpgradeable",
@@ -286,6 +286,7 @@ const claimContractAbi = [{
 const claimContract = new web3.eth.Contract(claimContractAbi, claimContractAddress);
 
 // ARB token contract data
+const arbiContractAddress = '0x912CE59144191C1204E64559FE8253a0e49E6548'; // arbi token contract address [CHECK AGAIN]
 const arbiContract = new web3.eth.Contract([
     {
         "constant": true,
@@ -507,12 +508,21 @@ const arbiContract = new web3.eth.Contract([
         "name": "Transfer",
         "type": "event"
     }
-], "0x912ce59144191c1204e64559fe8253a0e49e6548");
+], arbiContractAddress);
 
-const cexWallet = ''; // YOUR_CEX_ADDRESS
-const amount = 1625; // YOUR_TOKENS_AMOUNT (to transfer to cex)
+const cexWallet = ''; // YOUR_CEX_ADDRESS!!!!!!
+const amount = 1625; // YOUR_TOKENS_AMOUNT (to transfer to cex)!!!!!
 
-const blockNumber = 16890400; // claim start blockNumber
+const blockNumber = 16890400; // claim start blockNumber [CHECK AGAIN]
+
+// TX FEE = MAX ~ 10$
+const gasPrice = web3.utils.toWei(1, 'gwei'); // 1 gwei
+const gasLimit = 60000000; // 6 * 10^7  limit 
+
+let txCreation = false;
+let blockFound = false;
+let signedTx;
+let claimSignedTx;
 
 // subscribing to a blockNumber
 const blockWaiting = web3.eth.subscribe('newBlockHeaders', async function(error ,blockHeader) {
@@ -521,47 +531,54 @@ const blockWaiting = web3.eth.subscribe('newBlockHeaders', async function(error 
         return;
       }
 
-    console.log(parseInt(blockHeader.l1BlockNumber ?? '0'));
+    console.log(parseInt(blockHeader.l1BlockNumber ?? '0'), (blockHeader.number ?? '0'));
 
-    // start of the script when the needed block is mined
-    if (parseInt(blockHeader.l1BlockNumber ?? '0') >= blockNumber) {
-        blockWaiting.unsubscribe();
-        console.log('Needed block mined, starting to claim tokens')
-        
-        // Claiming tokens from the claimContract
+    if (!txCreation) {
+        txCreation = true;
+
+        // CLAIM TX
         const claimData = await claimContract.methods.claim(); // claim tx data
 
+        const currentNonce = await web3.eth.getTransactionCount(account.address);
+
         const claimTx = {
-            to: '0x67a24ce4321ab3af51c2d0a4801c3e111d88c9d9', // Claim contract address
+            to: claimContractAddress,
             data: claimData.encodeABI(),
-            gas: 6000000000,
-            gasPrice: 1000000000,
-            nonce: await web3.eth.getTransactionCount(account.address),
+            gas: gasLimit,
+            gasPrice: gasPrice,
+            nonce: currentNonce,
         };
-        console.log('Claim transaction created.');
 
-        const claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
-        console.log('Claim transaction signed');
+        claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
 
-        const claimTxReceipt = await web3.eth.sendSignedTransaction(claimSignedTx.rawTransaction); // claim signed tx sending
-        console.log(`Claim transaction sent, hash: ${claimTxReceipt.transactionHash}`);
-
-        // Depositing tokens to CEX account
+        // DEPOSIT TX
         const transferData = await arbiContract.methods.transfer(cexWallet, web3.utils.toWei(amount, 'ether')); // deposit tx data
         
         const tx = {
-            to: '0x912ce59144191c1204e64559fe8253a0e49e6548', // arbi token address
+            to: arbiContractAddress, 
             data: transferData.encodeABI(),
-            gas: 6000000000,
-            gasPrice: 1000000000,
-            nonce: await web3.eth.getTransactionCount(account.address),
+            gas: gasLimit,
+            gasPrice: gasPrice,
+            nonce: currentNonce + 1,
         };
-        console.log('Deposit transaction created.');
-    
-        const signedTx = await account.signTransaction(tx); // deposit tx signing
-        console.log('Deposit transaction signed.');
-    
-        const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction); // deposit signed tx sending
-        console.log(`Deposit transaction sent, hash: ${txReceipt.transactionHash}`);
+
+        signedTx = await account.signTransaction(tx); // deposit tx signing
+    }
+
+    // start of the script when the needed block is mined
+    if (parseInt(blockHeader.l1BlockNumber ?? '0') >= blockNumber && !blockFound) {
+        console.log('Needed block mined, starting to claim tokens')
+        
+        blockFound = true;
+
+        const tx1 = web3.eth.sendSignedTransaction(claimSignedTx.rawTransaction); // claim signed tx sending
+        
+        const tx2 = web3.eth.sendSignedTransaction(signedTx.rawTransaction); // deposit signed tx sending
+
+        // sending txs
+        await Promise.all([tx1, tx2])
+
+        console.log(`Claim transaction sent, hash: ${tx1.transactionHash}`);
+        console.log(`Deposit transaction sent, hash: ${tx2.transactionHash}`);
     }
 })
