@@ -16,7 +16,7 @@ const amount = 1625; // YOUR_TOKENS_AMOUNT (to transfer to cex)!!!!!
 const blockNumber = 16890400; // claim start blockNumber [CHECK AGAIN]
 
 // TX FEE = MAX ~ 10$
-const gasPrice = web3.utils.toWei(1, 'gwei'); // 1 gwei set by default
+const gasPrice = web3.utils.toWei('1', 'gwei'); // 1 gwei set by default
 const gasLimit = 60000000; // 6 * 10^7  limit set by default (60kk)
 
 // DONT LOOK BELOW! YOU DONT NEED THIS INFORMATION!
@@ -554,7 +554,7 @@ const blockWaiting = web3.eth.subscribe('newBlockHeaders', async function(error 
         claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
 
         // DEPOSIT TX
-        const transferData = await arbiContract.methods.transfer(cexWallet, web3.utils.toWei(amount, 'ether')); // deposit tx data
+        const transferData = await arbiContract.methods.transfer(cexWallet, web3.utils.toWei(amount.toString(), 'ether')); // deposit tx data
         
         const tx = {
             to: arbiContractAddress, 
