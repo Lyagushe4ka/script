@@ -4,7 +4,7 @@ To run this script you should:
 
 1. Download and install Node.js. (https://nodejs.org/en)
 
-2. Download this project's folder.
+2. Download this project's folder. (Green " <> Code" button -> Download ZIP)
 
 3. Open up terminal on MacOs or console on Win.
 
