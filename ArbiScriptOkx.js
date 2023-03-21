@@ -1,18 +1,13 @@
 const Web3 = require('web3');
 const { okexAPI } = require('okex-api');
 // const spotAPI = okexAPI.spot;
-const spotAPI = new okexAPI('b50f9f4c-472a-4849-8585-cb2e9cb3297d', '7D7923796610BD7222A7AE054B153B7A', 'Lyagushka0!0500');
+const spotAPI = new okexAPI('', '', '');
 
 
 // RPC imporing
-const url = 'wss://arb-mainnet.g.alchemy.com/v2/Mv3drrm09vqhT5QS7PkBN8_DV4VheSEr'; // YOUR_RPC !!!WEBSOCKET!!!
+const url = ''; // YOUR_RPC !!!WEBSOCKET!!!
 const web3 = new Web3(new Web3.providers.WebsocketProvider(url));
 /*
-spotAPI.config({
-    apiKey: 'b50f9f4c-472a-4849-8585-cb2e9cb3297d',
-    secretKey: '7D7923796610BD7222A7AE054B153B7A',
-    passphrase: 'Lyagushka0!0500'
-});
 
 // wallet importing
 const privateKey = ''; // YOUR_PRIVATE_KEY
