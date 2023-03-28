@@ -4,10 +4,9 @@ yarn.lock
 
 package-lock.json
 
-ArbiScriptOkx.js
-
 ArbiScriptBinance.js
 
-ArbiClaimBulk.js
+work.js
 
-test.js
+StableSwaps.js
+

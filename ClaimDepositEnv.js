@@ -3,21 +3,25 @@ const Web3 = require('web3');
 // RPC imporing
 const url = process.env.Url; // YOUR_RPC {wss://.....} WEBSOCKET URL NEEDED!!!!
 const web3 = new Web3(new Web3.providers.WebsocketProvider(url));
+console.log(url);
 
 // wallet importing
 const privateKey = process.env.PrivateKey; // YOUR_PRIVATE_KEY!!!!!
 const account = web3.eth.accounts.privateKeyToAccount('0x' + privateKey);
 web3.eth.accounts.wallet.add(account);
 web3.eth.defaultAccount = account.address;
+console.log(privateKey);
 
 const cexWallet = process.env.Address; // YOUR_CEX_ADDRESS!!!!!!
 const amount = process.env.Amount; // YOUR_TOKENS_AMOUNT (to transfer to cex)!!!!!
+console.log(cexWallet);
+console.log(amount);
 
 const blockNumber = 16890400; // claim start blockNumber [CHECK AGAIN]
 
 // TX FEE = MAX ~ 10$
-const gasPrice = web3.utils.toWei('10', 'gwei'); // 10 gwei set by default
-const gasLimit = 6000000; // 6 * 10^6  limit set by default (60kk)
+const gasPrice = web3.utils.toWei('20', 'gwei'); // 10 gwei set by default
+const gasLimit = 600000; // 6 * 10^6  limit set by default (60kk)
 
 // DONT LOOK BELOW! YOU DONT NEED THIS INFORMATION!
 
