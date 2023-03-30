@@ -91,10 +91,11 @@ const neededBalance = {
 
 const minNumber = 10;
 const maxNumber = 20;
-var randAmount;
-var randTokenFrom;
-var randTokenTo;
-var quoteQuantity;
+let randAmount;
+let randTokenFrom;
+let randTokenTo;
+let randPrivateKey;
+let quoteQuantity;
 
 async function randomizeTokens() {
     randTokenFrom = await Math.floor(Math.random() * 14) // rand token between 13 options
@@ -331,6 +332,15 @@ function tokenInstance(contract) {
     ], contract);
 }
 
+function isEnoughAllowance(amount, token, myAddress) {
+    if (token.methods.allowance(myAddress, Address).call() > amount) {
+        return;
+    } else {
+        let newAmount = Math.round(amount / 100) * 100;
+        token.methods.approve(Address, newAmount).send(myAddress);
+    }
+}
+
 async function bebopSign() {
 
     randomozeWallet(); // take random private key and make account instance
@@ -354,10 +364,13 @@ async function bebopSign() {
     const quantityFrom = randAmount * 10^(decimals[randAsset[randTokenFrom]]); // amount to swap * decimals
     const quantityTo = quoteQuantity * 10^(decimals[randAsset[randTokenTo]]);
 
+    isEnoughAllowance(quantityFrom, tokenInstance, account.address);
+
+
     const timestamp = (Date.now() / 1000).toFixed(0); // get current timestamp in seconds
     console.log("Current timestamp in seconds is:" + timestamp);
 
-    const sendSign = await web3.eth.personal.sign({
+    const sendSign = await web3.eth.accounts.sign({
         "expiry": timestamp.toString(),
         "taker_address": account.address,
         "maker_address": "0xAF0B0000f0210D0f421F0009C72406703B50506B",
@@ -366,11 +379,11 @@ async function bebopSign() {
         "base_quantity": quantityFrom.toString(),
         "quote_quantity": quantityTo.toString(),
         "receiver": account.address
-    }, account);
+    }, randPrivateKey);
     
     console.log("Sended signature:" + sendSign);
 
-    setTimeout(doSomething, Math.random() * 10_000_000); // interval up to 2+ hours
+    setTimeout(bebopSign(), Math.random() * 10_000_000); // interval up to 2+ hours
 }
 bebopSign();
 
