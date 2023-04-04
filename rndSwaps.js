@@ -1,66 +1,10 @@
 const Web3 = require('web3');
 const axios = require('axios');
 const ethers = require('ethers');
+const fs = require('fs');
 
-const url = "wss://polygon-mainnet.g.alchemy.com/v2/C2D5jSmRUdd6po6BYXTo0sbd0OShgwIA";
-const web3 = new Web3(new Web3.providers.WebsocketProvider(url));
-
-
-const privateKeys = [
-    "",
-    ""
-]
-
-const gasPrice = web3.utils.toWei('20', 'gwei');
-const gasLimit = 600000; 
-
-const randAsset = [
-    WETH,
-    WMATIC,
-    WBTC,
-    USDT,
-    DAI,
-    BAL,
-    USDC,
-    LINK,
-    AAVE,
-    CRV,
-    MKR,
-    SAND,
-    MATIC
-]
-
-const  decimals = {
-    WETH: 18,
-    WMATIC: 18,
-    WBTC: 8,
-    USDT: 6,
-    DAI: 18,
-    BAL: 18,
-    USDC: 6,
-    LINK: 18,
-    AAVE: 18,
-    CRV: 18,
-    MKR: 18,
-    SAND: 18,
-    MATIC: 18,
-}
-
-const tokenList = {
-    WETH: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // >500
-    WMATIC: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-    WBTC: "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6", // >500
-    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-    DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-    BAL: "0x9a71012B13CA4d3D0Cdc72A177DF3ef03b0E76A3",
-    USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-    LINK: "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
-    AAVE: "0xD6DF932A45C0f255f85145f286eA0b292B21C90B", // >50
-    CRV: "0x172370d5Cd63279eFa6d502DAB29171933a610AF",
-    MKR: "0x6f7C932e7684666C9fd1d44527765433e01fF61d", // >500
-    SAND: "0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683",
-    MATIC: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
-}
+const url = "https://polygon.llamarpc.com";
+const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
 const assets = [
     {
@@ -134,30 +78,8 @@ const assets = [
         address: '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683',
         decimals: 18,
         minBalance: 0.1
-    },
-    {
-        name: 'MATIC',
-        address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-        decimals: 18,
-        minBalance: 0.1
-    },
+    }
 ]
-
-const neededBalance = {
-    WETH: 0.001,
-    WMATIC: 0.1,
-    WBTC: 0.0001,
-    USDT: 0.1,
-    DAI: 0.1,
-    BAL: 0.1,
-    USDC: 0.1,
-    LINK: 0.1,
-    AAVE: 0.01,
-    CRV: 0.1,
-    MKR: 0.001,
-    SAND: 0.1,
-    MATIC: 0.1
-}
 
 const domain = {
     name: 'BebopAggregationContract',
@@ -208,32 +130,65 @@ const types = {
 }
 
 let randAmount;
-let randTokenFrom;
-let randTokenTo;
+let randTokens = [];
+let privateKeys = [];
 let randPrivateKey;
 let account;
 let wallet;
 let timeoutTime;
 
+function parsePrivateKeys() {
+    const data = fs.readFileSync('PrivateKeys.json')
+    privateKeys.push(...JSON.parse(data));
+}
+
 // function to take 2 random tokens out of a list
-async function randomizeTokens() {
-    randTokenFrom = await Math.floor(Math.random() * (assets.length + 1)) // rand token between 13 options
-    randTokenTo = await Math.floor(Math.random() * (assets.length + 1)) // rand token between 13 options
+async function randomizeTokens(wallet) {
+    let randTokenFrom = 0;
+    let randTokenTo = 0;
+    randTokenTo = Math.floor(Math.random() * assets.length); // rand token between 13 options
+    while (true) {
+        randTokenFrom = Math.floor(Math.random() * assets.length); // rand token between 13 options
+
+        if (randTokenFrom === randTokenTo) {
+            continue;
+        }
+        let balance;
+        console.log(assets[randTokenFrom].name);
+        while (true) {
+            try {
+                balance = await tokenInstance(assets[randTokenFrom].address).methods.balanceOf(wallet).call();
+            } catch (err) {
+                console.log(err.message);
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 1_000)
+                })
+                continue;
+            }
+            break;
+        }
+        if (balance < (assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))) {
+            continue;
+        } else {
+            randTokens.push(randTokenFrom, randTokenTo);
+            break;
+        }
+    }
 }
 
 //function to take a random private key and make a wallet instance out of it
-async function randomozeWallet() {
-    randPrivateKey = await Math.floor(Math.random() * (privateKeys.length + 1))
+function randomozeWallet() {
+    randPrivateKey = Math.floor(Math.random() * privateKeys.length)
     account = web3.eth.accounts.privateKeyToAccount('0x' + privateKeys[randPrivateKey]);
     web3.eth.accounts.wallet.add(account);
     web3.eth.defaultAccount = account.address;
 
-    wallet = new ethers.Wallet(privateKeys[randPrivateKey]);
+    wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
 }
 
 // function to make a token instance
 function tokenInstance(contract) {
-    return web3.eth.Contract([
+    return new web3.eth.Contract([
         {
             "constant": true,
             "inputs": [],
@@ -458,87 +413,87 @@ function tokenInstance(contract) {
 }
 
 // function to check if its enough allowance to make a trade
-// if not - make an approval x2 from the trade size
-function isEnoughAllowance(amount, tokenContract, myAddress) {
-    if (tokenInstance(tokenContract).methods.allowance(myAddress, Address).call() > amount) {
+// if not - make an approval to MaxUint256
+async function isEnoughAllowance(amount, tokenContract, myAddress) {
+    if (await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > amount * (10 ** assets[randTokens[0]].decimals)) {
         return;
     } else {
-        let newAmount = amount * 2;
-        tokenInstance(tokenContract).methods.approve(Address, newAmount).send(myAddress);
+        const txData = await tokenInstance(tokenContract).methods.approve('0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C', BigInt(ethers.constants.MaxUint256));
+        
+        const tx = {
+            to: tokenContract,
+            data: txData.encodeABI(),
+            gas: 150000
+        };
+
+        const txSign = await web3.eth.accounts.signTransaction(tx, '0x' + privateKeys[randPrivateKey]); // claim tx signing
+
+        const txSend = await web3.eth.sendSignedTransaction(txSign.rawTransaction); // claim signed tx sending
+
+        console.log(`Approve transaction sent, hash: ${txSend.transactionHash}`);
+        
     }
 }
 
 
 async function main() {
-
-    randomozeWallet(); // take random private key and make account instance
-    console.log("Chosen wallet is:" + account.address);
-    
-    // take 2 random tokens && tokenFrom balance on this account should be > 0.01    
-    while (randTokenFrom == randTokenTo && tokenInstance(assets[randTokenFrom].address).methods.balanceOf.call() > assets[randTokenFrom].minBalance * 10 ^ assets[randTokenFrom].decimals) {
-        randomizeTokens();
+    // parsing private keys from json file on first use
+    if (privateKeys.length == 0) {
+        parsePrivateKeys();
     }
-    const tokenBalance =  tokenInstance(assets[randTokenFrom].address).methods.balanceOf.call() / 10 ^ assets[randTokenFrom].decimals; // tokenFrom balance
-    const swapMin = assets[randTokenFrom].minBalance;
-    const tokenFrom = assets[randTokenFrom].address; // take tokenFrom contract
-    const tokenTo = assets[randTokenTo].address; // take tokenTo contract
-    console.log("Token 'from' is:" +  assets[randTokenFrom].name);
-    console.log("Token 'to' is:" +  assets[randTokenTo].name);
 
+    // take random wallet to swap
+    randomozeWallet(); // take random private key and make account instance
+    console.log("Chosen wallet is: " + account.address);
+    
+    // take 2 random tokens to swap
+    await randomizeTokens(account.address);
+    console.log('token from contract is" ' + assets[randTokens[0]].address);
+    console.log('token from decimals is: ' + assets[randTokens[0]].decimals);
+    console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
+    console.log('Balance with decimals is: ' + await tokenInstance(assets[randTokens[0]].address).methods.balanceOf(account.address).call());
+    console.log('min amount with decimals is: ' + assets[randTokens[0]].minBalance * (10 ** assets[randTokens[0]].decimals));
 
-    randAmount = await Math.floor(Math.random() * (tokenBalance - swapMin + 1) + swapMin); // random amount of tokens to swap between maxNumber and minNumber
-    console.log("Amount to swap is:" + randAmount);
+    
+    const tokenBalance = await tokenInstance(assets[randTokens[0]].address).methods.balanceOf(account.address).call() / (10 ** assets[randTokens[0]].decimals); // tokenFrom balance
+    const swapMin = assets[randTokens[0]].minBalance;
+    console.log("Token 'from' is:" +  assets[randTokens[0]].name);
+    console.log("Token 'to' is:" +  assets[randTokens[1]].name);
+    console.log("Token 'from' balance is: " + tokenBalance);
 
-    isEnoughAllowance(randAmount, assets[randTokenFrom].address, account.address);
+    // Randomoze token amout to swap from minAmount to token balance on account
+    randAmount = Math.random() * (tokenBalance - swapMin) + swapMin; // random amount of tokens to swap between maxNumber and minNumber
+    console.log("Amount to swap is: " + randAmount);
+
+    // Check if the token has enough allowance
+    await isEnoughAllowance(randAmount, assets[randTokens[0]].address, account.address);
 
     const quote = await axios.get('https://api.bebop.xyz/polygon/v1/quote', {
         params: {
-            buy_tokens: assets[randTokenTo].name,
-            sell_tokens: assets[randTokenFrom].name,
+            buy_tokens: assets[randTokens[1]].name,
+            sell_tokens: assets[randTokens[0]].name,
             sell_amounts: randAmount.toString(),
             taker_address: wallet.address.toString()
         }
     });
-    console.log(quote.data.buyTokens);
-    console.log(quote.data.toSign);
+    console.log(quote.data);
+    console.log(quote.data.expiry, Date.now() / 1000);
 
     const signature = await wallet._signTypedData(domain, types, quote.data.toSign);
     console.log(signature);
+
+    await new Promise((res) => setTimeout(res, 80_000))
 
     const order = await axios.post('https://api.bebop.xyz/polygon/v1/order', {
         "signature": signature,
         "quote_id": quote.data.quoteId
     }).catch(error => {
         console.error(error);
-      });
-    console.log(order.status);
-    console.log(order.txHash);
+    });
+    console.log(order.data);
    
-    setTimeout(main, timeoutTime = Math.random() * 10_000_000); // interval up to 2+ hours
-    console.log("Timeout time is set to:" + timeoutTime);
+    // Random interval up to 10 minutes
+    setTimeout(main, timeoutTime = 600_000);
+    console.log("Timeout time is set to: " + Math.floor(timeoutTime / 60000) + ' minutes.');
 }
 main();
-
-
-/*
-async function main() {
-    const currentNonce = await web3.eth.getTransactionCount(account.address);
-
-    const claimTx = {
-        to: Address,
-        data: '',
-        gas: gasLimit,
-        gasPrice: gasPrice,
-        nonce: currentNonce,
-    };
-
-    claimSignedTx = await account.signTransaction(claimTx); // claim tx signing
-
-
-    const tx1 = await web3.eth.sendSignedTransaction(claimSignedTx.rawTransaction); // claim signed tx sending
-
-    console.log(`Claim transaction sent, hash: ${tx1.transactionHash}`);
-}
-main();
-
-*/
