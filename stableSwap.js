@@ -2,6 +2,7 @@ const Web3 = require('web3');
 const axios = require('axios');
 const ethers = require('ethers');
 const fs = require('fs');
+const { setTimeout } = require('timers');
 
 const url = "https://polygon.llamarpc.com";
 const web3 = new Web3(new Web3.providers.HttpProvider(url));
@@ -81,6 +82,7 @@ let randPrivateKey;
 let account;
 let wallet;
 let timeoutTime;
+let quote;
 
 function parsePrivateKeys() {
     const data = fs.readFileSync('PrivateKeys.json')
@@ -91,15 +93,14 @@ function parsePrivateKeys() {
 async function randomizeTokens(wallet) {
     let randTokenFrom = 0;
     let randTokenTo = 0;
-    randTokenTo = Math.floor(Math.random() * assets.length); // rand token between 3 options
     while (true) {
+        randTokenTo = Math.floor(Math.random() * assets.length); // rand token between 3 options
         randTokenFrom = Math.floor(Math.random() * assets.length); // rand token between 3 options
 
         if (randTokenFrom === randTokenTo) {
             continue;
         }
         let balance;
-        console.log(assets[randTokenFrom].name);
         while (true) {
             try {
                 balance = await tokenInstance(assets[randTokenFrom].address).methods.balanceOf(wallet).call();
@@ -429,15 +430,25 @@ async function main() {
     // Check if the token has enough allowance
     await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address);
 
-    const quote = await axios.get('https://api.bebop.xyz/polygon/v1/quote', {
-        params: {
-            buy_tokens: assets[randTokens[1]].name,
-            sell_tokens: assets[randTokens[0]].name,
-            sell_amounts: Math.floor(tokenBalance).toString(),
-            taker_address: wallet.address.toString()
+    while (true) {
+        try {
+            quote = await axios.get('https://api.bebop.xyz/polygon/v1/quote', {
+                params: {
+                    buy_tokens: assets[randTokens[1]].name,
+                    sell_tokens: assets[randTokens[0]].name,
+                    sell_amounts: Math.floor(tokenBalance).toString(),
+                    taker_address: wallet.address.toString()
+                }
+            });
+        } catch (err) {
+            console.log(err.message);
+            await new Promise((res) => {
+                setTimeout(res, 2_000);
+            })
+            continue;
         }
-    });
-
+        break;
+    }  
     const signature = await wallet._signTypedData(domain, types, quote.data.toSign);
     console.log(signature);
 
@@ -449,8 +460,8 @@ async function main() {
     });
     console.log(order.data);
    
-    // Random interval up to 10 minutes
-    setTimeout(main, timeoutTime = Math.floor(Math.random() * (300_000 - 120_000) + 120_000));
-    console.log("Timeout time is set to: " + Math.floor(timeoutTime / 60000) + ' minutes.');
+    // Random interval from 20 to 100 seconds
+    setTimeout(main, timeoutTime = Math.random() * (100_000 - 20_000) + 100_000);
+    console.log("Timeout time is set to: " + Math.floor(timeoutTime / 1000) + ' seconds.');
 }
 main();
