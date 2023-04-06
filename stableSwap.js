@@ -3,6 +3,7 @@ const axios = require('axios');
 const ethers = require('ethers');
 const fs = require('fs');
 const { setTimeout } = require('timers');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 const url = "https://polygon.llamarpc.com";
 const web3 = new Web3(new Web3.providers.HttpProvider(url));
@@ -78,16 +79,23 @@ const types = {
 
 let randTokens = [];
 let privateKeys = [];
+let proxies = [];
 let counter = 0;
+let ipCheck = 0;
 let randPrivateKey;
 let account;
 let wallet;
 let timeoutTime;
 let quote;
+let proxy;
 
-function parsePrivateKeys() {
+// parsing private keys and proxies from files
+function parseData() {
     const data = fs.readFileSync('PrivateKeys.json')
     privateKeys.push(...JSON.parse(data));
+
+    const proxyData = fs.readFileSync('proxy.txt').toString();
+    proxies = proxyData.split('\n');
 }
 
 // function to take 2 random tokens out of a list
@@ -133,6 +141,8 @@ function randomozeWallet() {
     web3.eth.defaultAccount = account.address;
 
     wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
+
+    proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
 }
 
 // function to make a token instance
@@ -366,14 +376,14 @@ function tokenInstance(contract) {
 async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals) {
     if (await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > amount * (10 ** tokenDecimals)) {
         return;
-    } else if (tokenContract == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F") {
+    } else if (tokenContract == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" && await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > 0) {
 
         const txRevokeData = await tokenInstance(tokenContract).methods.approve('0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C', 0);
 
         const txRevoke = {
             to: tokenContract,
             data: txRevokeData.encodeABI(),
-            gas: 100000
+            gas: 150000
         }
         
         const txRevokeSend = await web3.eth.sendTransaction(txRevoke);
@@ -385,7 +395,7 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
         const tx = {
             to: tokenContract,
             data: txData.encodeABI(),
-            gas: 100000
+            gas: 150000
         };
 
         const txSend = await web3.eth.sendTransaction(tx); // claim signed tx sending
@@ -398,7 +408,8 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
         const tx = {
             to: tokenContract,
             data: txData.encodeABI(),
-            gas: 100000
+            gas: 150000,
+            gasPrice: web3.utils.toWei('200', 'gwei')
         };
 
         const txSend = await web3.eth.sendTransaction(tx); // claim signed tx sending
@@ -407,17 +418,27 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
     }
 }
 
-
 async function main() {
     // parsing private keys from json file on first use
     if (privateKeys.length == 0) {
-        parsePrivateKeys();
+        parseData();
     }
 
     // take random wallet to swap
     randomozeWallet(); // take random private key and make account instance
     console.log("Chosen wallet is: " + account.address);
-    
+    console.log("Choses proxy is: " + proxy);
+
+    // one time IP check
+    if (ipCheck == 0) {
+        const myIp = await axios.get('https://api64.ipify.org',{
+            httpsAgent: proxy,
+            httpAgent: proxy
+        });
+        console.log("Current IP address is: " + myIp.data);
+        ipCheck++;
+    }
+
     // take 2 random tokens to swap
     await randomizeTokens(account.address);
     console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
@@ -441,7 +462,9 @@ async function main() {
                     sell_tokens: assets[randTokens[0]].name,
                     sell_amounts: Math.floor(tokenBalance).toString(),
                     taker_address: wallet.address.toString()
-                }
+                },
+                httpsAgent: proxy,
+                httpAgent: proxy
             });
         } catch (err) {
             console.log(err.message);
@@ -455,10 +478,14 @@ async function main() {
     const signature = await wallet._signTypedData(domain, types, quote.data.toSign);
     console.log(signature);
 
-    const order = await axios.post('https://api.bebop.xyz/polygon/v1/order', {
-        "signature": signature,
-        "quote_id": quote.data.quoteId
-    }).catch(error => {
+    const order = await axios.post('https://api.bebop.xyz/polygon/v1/order',
+        {
+            "signature": signature,
+            "quote_id": quote.data.quoteId,
+        },
+        {httpsAgent: proxy},
+        {httpAgent: proxy}
+    ).catch(error => {
         console.error(error);
     });
     console.log(order.data);
