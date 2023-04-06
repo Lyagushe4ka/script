@@ -78,6 +78,7 @@ const types = {
 
 let randTokens = [];
 let privateKeys = [];
+let counter = 0;
 let randPrivateKey;
 let account;
 let wallet;
@@ -104,11 +105,13 @@ async function randomizeTokens(wallet) {
         while (true) {
             try {
                 balance = await tokenInstance(assets[randTokenFrom].address).methods.balanceOf(wallet).call();
+                console.log('Token is: ' + assets[randTokenFrom].name +', token balance is: ' + balance);
+                console.log('Min balance is: ' + assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))
             } catch (err) {
                 console.log(err.message);
                 await new Promise((resolve) => {
                     setTimeout(resolve, 1_000)
-                })
+                });
                 continue;
             }
             break;
@@ -116,7 +119,7 @@ async function randomizeTokens(wallet) {
         if (balance < (assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))) {
             continue;
         } else {
-            randTokens.push(randTokenFrom, randTokenTo);
+            randTokens = [randTokenFrom, randTokenTo];
             break;
         }
     }
@@ -360,8 +363,8 @@ function tokenInstance(contract) {
 
 // function to check if its enough allowance to make a trade
 // if not - make an approval to MaxUint256
-async function isEnoughAllowance(amount, tokenContract, myAddress) {
-    if (await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > amount * (10 ** assets[randTokens[0]].decimals)) {
+async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals) {
+    if (await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > amount * (10 ** tokenDecimals)) {
         return;
     } else if (tokenContract == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F") {
 
@@ -428,7 +431,7 @@ async function main() {
     console.log("Amount to swap is: " + Math.floor(tokenBalance));
 
     // Check if the token has enough allowance
-    await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address);
+    await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address, assets[randTokens[0]].decimals);
 
     while (true) {
         try {
@@ -459,9 +462,17 @@ async function main() {
         console.error(error);
     });
     console.log(order.data);
+
+    if (order.data.status == 'Success') {
+        counter++;
+        console.log('Orders count is: ' + counter);
+        if (counter >= 100) {
+            return console.log('100 orders were executed');
+        }
+    }
    
     // Random interval from 20 to 100 seconds
-    setTimeout(main, timeoutTime = Math.random() * (100_000 - 20_000) + 100_000);
+    setTimeout(main, timeoutTime = Math.random() * (40_000 - 5_000) + 5_000);
     console.log("Timeout time is set to: " + Math.floor(timeoutTime / 1000) + ' seconds.');
 }
 main();
