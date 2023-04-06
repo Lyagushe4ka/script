@@ -113,8 +113,8 @@ async function randomizeTokens(wallet) {
         while (true) {
             try {
                 balance = await tokenInstance(assets[randTokenFrom].address).methods.balanceOf(wallet).call();
-                console.log('Token is: ' + assets[randTokenFrom].name +', token balance is: ' + balance);
-                console.log('Min balance is: ' + assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))
+                // console.log('Token is: ' + assets[randTokenFrom].name +', token balance is: ' + balance);
+                // console.log('Min balance is: ' + assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))
             } catch (err) {
                 console.log(err.message);
                 await new Promise((resolve) => {
@@ -143,6 +143,9 @@ function randomozeWallet() {
     wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
 
     proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
+
+    console.log("Chosen wallet is: " + account.address);
+    console.log("Choses proxy is: " + proxies[randPrivateKey]);
 }
 
 // function to make a token instance
@@ -378,12 +381,15 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
         return;
     } else if (tokenContract == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" && await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > 0) {
 
+        const gasPrice = await web3.eth.getGasPrice();
+
         const txRevokeData = await tokenInstance(tokenContract).methods.approve('0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C', 0);
 
         const txRevoke = {
             to: tokenContract,
             data: txRevokeData.encodeABI(),
-            gas: 150000
+            gas: 150000,
+            gasPrice: gasPrice
         }
         
         const txRevokeSend = await web3.eth.sendTransaction(txRevoke);
@@ -395,7 +401,8 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
         const tx = {
             to: tokenContract,
             data: txData.encodeABI(),
-            gas: 150000
+            gas: 150000,
+            gasPrice: gasPrice
         };
 
         const txSend = await web3.eth.sendTransaction(tx); // claim signed tx sending
@@ -403,13 +410,15 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
         console.log(`Approve transaction sent, hash: ${txSend.transactionHash}`);
         
     } else {
+        const gasPrice = await web3.eth.getGasPrice();
+
         const txData = await tokenInstance(tokenContract).methods.approve('0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C', BigInt(ethers.constants.MaxUint256));
         
         const tx = {
             to: tokenContract,
             data: txData.encodeABI(),
             gas: 150000,
-            gasPrice: web3.utils.toWei('200', 'gwei')
+            gasPrice: gasPrice
         };
 
         const txSend = await web3.eth.sendTransaction(tx); // claim signed tx sending
@@ -426,9 +435,7 @@ async function main() {
 
     // take random wallet to swap
     randomozeWallet(); // take random private key and make account instance
-    console.log("Chosen wallet is: " + account.address);
-    console.log("Choses proxy is: " + proxy);
-
+    /*
     // one time IP check
     if (ipCheck == 0) {
         const myIp = await axios.get('https://api64.ipify.org',{
@@ -438,18 +445,16 @@ async function main() {
         console.log("Current IP address is: " + myIp.data);
         ipCheck++;
     }
-
+    */
     // take 2 random tokens to swap
     await randomizeTokens(account.address);
-    console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
-    console.log('min amount with decimals is: ' + assets[randTokens[0]].minBalance * (10 ** assets[randTokens[0]].decimals));
+    // console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
+    // console.log('min amount with decimals is: ' + assets[randTokens[0]].minBalance * (10 ** assets[randTokens[0]].decimals));
 
     
     const tokenBalance = await tokenInstance(assets[randTokens[0]].address).methods.balanceOf(account.address).call() / (10 ** assets[randTokens[0]].decimals); // tokenFrom balance
-    console.log("Token 'from' is: " +  assets[randTokens[0]].name);
-    console.log("Token 'to' is: " +  assets[randTokens[1]].name);
-    console.log("Token 'from' balance is: " + tokenBalance);
-    console.log("Amount to swap is: " + Math.floor(tokenBalance));
+    console.log("New order from " +  assets[randTokens[0]].name + " to " + assets[randTokens[1]].name);
+    console.log(`Token 'from' balance is: ` + tokenBalance + `, Amount to swap is: ` + Math.floor(tokenBalance));
 
     // Check if the token has enough allowance
     await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address, assets[randTokens[0]].decimals);
@@ -476,7 +481,6 @@ async function main() {
         break;
     }  
     const signature = await wallet._signTypedData(domain, types, quote.data.toSign);
-    console.log(signature);
 
     const order = await axios.post('https://api.bebop.xyz/polygon/v1/order',
         {
@@ -488,7 +492,7 @@ async function main() {
     ).catch(error => {
         console.error(error);
     });
-    console.log(order.data);
+    console.log("Order status is: " + order.data.status);
 
     if (order.data.status == 'Success') {
         counter++;
@@ -501,5 +505,6 @@ async function main() {
     // Random interval from 20 to 100 seconds
     setTimeout(main, timeoutTime = Math.random() * (40_000 - 5_000) + 5_000);
     console.log("Timeout time is set to: " + Math.floor(timeoutTime / 1000) + ' seconds.');
+    console.log(" ");
 }
 main();
