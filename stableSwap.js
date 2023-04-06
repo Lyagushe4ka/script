@@ -4,6 +4,7 @@ const ethers = require('ethers');
 const fs = require('fs');
 const { setTimeout } = require('timers');
 const { SocksProxyAgent } = require('socks-proxy-agent');
+const colors = require('colors/safe');
 
 const url = "https://polygon.llamarpc.com";
 const web3 = new Web3(new Web3.providers.HttpProvider(url));
@@ -144,8 +145,8 @@ function randomozeWallet() {
 
     proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
 
-    console.log("Chosen wallet is: " + account.address);
-    console.log("Choses proxy is: " + proxies[randPrivateKey]);
+    console.log("Chosen wallet is: " + colors.cyan(account.address));
+    console.log("Choses proxy is: " + colors.cyan(proxies[randPrivateKey]));
 }
 
 // function to make a token instance
@@ -423,7 +424,7 @@ async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals
 
         const txSend = await web3.eth.sendTransaction(tx); // claim signed tx sending
 
-        console.log(`Approve transaction sent, hash: ${txSend.transactionHash}`);
+        console.log(colors.rainbow(`Approve transaction sent, hash: ${txSend.transactionHash}`));
     }
 }
 
@@ -453,8 +454,8 @@ async function main() {
 
     
     const tokenBalance = await tokenInstance(assets[randTokens[0]].address).methods.balanceOf(account.address).call() / (10 ** assets[randTokens[0]].decimals); // tokenFrom balance
-    console.log("New order from " +  assets[randTokens[0]].name + " to " + assets[randTokens[1]].name);
-    console.log(`Token 'from' balance is: ` + tokenBalance + `, Amount to swap is: ` + Math.floor(tokenBalance));
+    console.log("New order from " +  colors.green(assets[randTokens[0]].name) + " to " + colors.blue(assets[randTokens[1]].name));
+    console.log(`Token 'from' balance is: ` + colors.green(tokenBalance) + `, Amount to swap is: ` + colors.green(Math.floor(tokenBalance)));
 
     // Check if the token has enough allowance
     await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address, assets[randTokens[0]].decimals);
@@ -492,11 +493,11 @@ async function main() {
     ).catch(error => {
         console.error(error);
     });
-    console.log("Order status is: " + order.data.status);
+    console.log("Order status is: " + (order.data.status == "Success" ? colors.green(order.data.status) : colors.red(order.data.status)));
 
     if (order.data.status == 'Success') {
         counter++;
-        console.log('Orders count is: ' + counter);
+        console.log('Orders count is: ' + colors.yellow(counter));
         if (counter >= 100) {
             return console.log('100 orders were executed');
         }
@@ -504,7 +505,7 @@ async function main() {
    
     // Random interval from 20 to 100 seconds
     setTimeout(main, timeoutTime = Math.random() * (40_000 - 5_000) + 5_000);
-    console.log("Timeout time is set to: " + Math.floor(timeoutTime / 1000) + ' seconds.');
+    console.log("Timeout time is set to: " + colors.yellow(Math.floor(timeoutTime / 1000)) + ' seconds.');
     console.log(" ");
 }
 main();
