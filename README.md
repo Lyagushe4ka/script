@@ -6,12 +6,12 @@ To run this script you should:
 
 2. Download this project's folder. (Green " <> Code" button -> Download ZIP)
 
-3. Sign in on https://dashboard.alchemy.com/ and obtain Websocket rpc url. (wss:/...)
+3. Open termainal/console and open path to downloaded folder "cd folderPath"
 
-3. UnZIP file and open script file with wordpad. Change dependencies (private key, rpc, cex address, tokens amount)
+4. Type "npm i" and all needed dependencies will be installed
 
-3. Open up terminal on MacOs or console on Win.
+5. Create PrivateKeys.json file and paste in your private keys like this: ["PrivateKey1", "PrivateKey2", "PrivateKey3"]
 
-4. Type in "cd {Path to downloaded folder}". Probably the path will be "Downloads/{ScriptName}.js"
+6. Download file with your proxies in format login:password@ip:port
 
-5. To run the script type in "node {ScriptName}.js".
+7. Run script - "node ScriptName"

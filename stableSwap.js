@@ -2,7 +2,6 @@ const Web3 = require('web3');
 const axios = require('axios');
 const ethers = require('ethers');
 const fs = require('fs');
-const { setTimeout } = require('timers');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const colors = require('colors/safe');
 
@@ -78,24 +77,17 @@ const types = {
     ]
 }
 
-let randTokens = [];
-let privateKeys = [];
+const privateKeys = [];
+const txCount = {};
 let proxies = [];
-let txCount = {};
-let randPrivateKey;
-let account;
-let wallet;
-let timeoutTime;
-let quote;
-let proxy;
 
 // parsing private keys and proxies from files
 function parseData() {
     const data = fs.readFileSync('PrivateKeys.json')
     privateKeys.push(...JSON.parse(data));
 
-    for (let i = 0; i < privateKeys.length; i++) {
-        const acc = web3.eth.accounts.privateKeyToAccount(privateKeys[i]);
+    for (const privateKey of privateKeys) {
+        const acc = web3.eth.accounts.privateKeyToAccount(privateKey);
         txCount[acc.address] = 0;
     }
 
@@ -132,25 +124,29 @@ async function randomizeTokens(wallet) {
         if (balance < (assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))) {
             continue;
         } else {
-            randTokens = [randTokenFrom, randTokenTo];
-            break;
+            return [randTokenFrom, randTokenTo];
         }
     }
 }
 
 //function to take a random private key and make a wallet instance out of it
 function randomozeWallet() {
-    randPrivateKey = Math.floor(Math.random() * privateKeys.length)
-    account = web3.eth.accounts.privateKeyToAccount('0x' + privateKeys[randPrivateKey]);
+    const randPrivateKey = Math.floor(Math.random() * privateKeys.length)
+    const account = web3.eth.accounts.privateKeyToAccount('0x' + privateKeys[randPrivateKey]);
     web3.eth.accounts.wallet.add(account);
     web3.eth.defaultAccount = account.address;
 
-    wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
+    const wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
 
-    proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
+    const proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
 
     console.log("Chosen wallet is: " + colors.cyan(account.address));
     console.log("Choses proxy is: " + colors.cyan(proxies[randPrivateKey]));
+    return  {
+        account,
+        wallet,
+        proxy
+    }
 }
 
 // function to make a token instance
@@ -381,7 +377,7 @@ function tokenInstance(contract) {
 
 // function to check if its enough allowance to make a trade
 // if not - make an approval to MaxUint256
-async function isEnoughAllowance(amount, tokenContract, myAddress, tokenDecimals) {
+async function approveTokens(amount, tokenContract, myAddress, tokenDecimals) {
     if (await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > amount * (10 ** tokenDecimals)) {
         return;
     } else if (tokenContract == "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" && await tokenInstance(tokenContract).methods.allowance(myAddress, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call() > 0) {
@@ -439,27 +435,39 @@ async function main() {
     }
 
     // take random wallet to swap
-    randomozeWallet(); // take random private key and make account instance
+    const { account, wallet, proxy } = randomozeWallet();
     
     // take 2 random tokens to swap
-    await randomizeTokens(account.address);
-    // console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
-    // console.log('min amount with decimals is: ' + assets[randTokens[0]].minBalance * (10 ** assets[randTokens[0]].decimals));
+    const rndTokens = await randomizeTokens(account.address);
 
+    let balanceOf;
+    while (true) {
+        try {
+            balanceOf = await tokenInstance(assets[rndTokens[0]].address).methods.balanceOf(account.address).call();
+        } catch (err) {
+            console.log(err.message);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 1_000)
+            });
+            continue;
+        }
+        break;
+    }
     
-    const tokenBalance = await tokenInstance(assets[randTokens[0]].address).methods.balanceOf(account.address).call() / (10 ** assets[randTokens[0]].decimals); // tokenFrom balance
-    console.log("New order from " +  colors.green(assets[randTokens[0]].name) + " to " + colors.blue(assets[randTokens[1]].name));
+    const tokenBalance = balanceOf / (10 ** assets[rndTokens[0]].decimals); // tokenFrom balance
+    console.log("New order from " +  colors.green(assets[rndTokens[0]].name) + " to " + colors.blue(assets[rndTokens[1]].name));
     console.log(`Token 'from' balance is: ` + colors.green(tokenBalance) + `, Amount to swap is: ` + colors.green(Math.floor(tokenBalance)));
 
     // Check if the token has enough allowance
-    await isEnoughAllowance(Math.floor(tokenBalance), assets[randTokens[0]].address, account.address, assets[randTokens[0]].decimals);
+    await approveTokens(Math.floor(tokenBalance), assets[rndTokens[0]].address, account.address, assets[rndTokens[0]].decimals);
 
+    let quote;
     while (true) {
         try {
             quote = await axios.get('https://api.bebop.xyz/polygon/v1/quote', {
                 params: {
-                    buy_tokens: assets[randTokens[1]].name,
-                    sell_tokens: assets[randTokens[0]].name,
+                    buy_tokens: assets[rndTokens[1]].name,
+                    sell_tokens: assets[rndTokens[0]].name,
                     sell_amounts: Math.floor(tokenBalance).toString(),
                     taker_address: wallet.address.toString()
                 },
@@ -487,28 +495,19 @@ async function main() {
     ).catch(error => {
         console.error(error);
     });
-    console.log("Order status is: " + (order.data.status == "Success" ? colors.green(order.data.status) : colors.red(order.data.status)));
+    console.log("Order status is: " + (order.data.status == "Success" ? colors.green(order.data.status) : colors.red(order.data)));
 
     if (order.data.status == 'Success') {
         txCount[account.address]++;
         console.log('Orders count is: ' + colors.yellow(txCount[account.address]) + ' for wallet address: ' + colors.cyan(account.address));
         if (txCount[account.address] >= 100) {
             console.log('100 orders were executed for wallet: ' + colors.red(account.address));
-            for (let i = 0; i < privateKeys.length; i++) {
-                if (privateKeys[i] == account.address) {
-                    privateKeys.splice(i, 1);
-                    proxies.splice(i, 1);
-
-                    if (privateKeys.length <= 0) {
-                        return console.log(colors.bgRed("All wallets have 100 TXes"))
-                    }
-                }
-            }
         }
     }
    
-    // Random interval from 20 to 100 seconds
-    setTimeout(main, timeoutTime = Math.random() * (40_000 - 5_000) + 5_000);
+    let timeoutTime
+    // Random interval from 3 to 21 seconds
+    setTimeout(main, timeoutTime = Math.random() * (21_000 - 3_000) + 3_000);
     console.log("Timeout time is set to: " + colors.yellow(Math.floor(timeoutTime / 1000)) + ' seconds.');
     console.log(" ");
 }
