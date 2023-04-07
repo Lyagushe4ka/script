@@ -81,8 +81,7 @@ const types = {
 let randTokens = [];
 let privateKeys = [];
 let proxies = [];
-let counter = 0;
-let ipCheck = 0;
+let txCount = {};
 let randPrivateKey;
 let account;
 let wallet;
@@ -94,6 +93,11 @@ let proxy;
 function parseData() {
     const data = fs.readFileSync('PrivateKeys.json')
     privateKeys.push(...JSON.parse(data));
+
+    for (let i = 0; i < privateKeys.length; i++) {
+        const acc = web3.eth.accounts.privateKeyToAccount(privateKeys[i]);
+        txCount[acc.address] = 0;
+    }
 
     const proxyData = fs.readFileSync('proxy.txt').toString();
     proxies = proxyData.split('\n');
@@ -436,17 +440,7 @@ async function main() {
 
     // take random wallet to swap
     randomozeWallet(); // take random private key and make account instance
-    /*
-    // one time IP check
-    if (ipCheck == 0) {
-        const myIp = await axios.get('https://api64.ipify.org',{
-            httpsAgent: proxy,
-            httpAgent: proxy
-        });
-        console.log("Current IP address is: " + myIp.data);
-        ipCheck++;
-    }
-    */
+    
     // take 2 random tokens to swap
     await randomizeTokens(account.address);
     // console.log('current allowance is: ' + await tokenInstance(assets[randTokens[0]].address).methods.allowance(account.address, '0xBeb09beB09e95E6FEBf0d6EEb1d0D46d1013CC3C').call());
@@ -496,10 +490,20 @@ async function main() {
     console.log("Order status is: " + (order.data.status == "Success" ? colors.green(order.data.status) : colors.red(order.data.status)));
 
     if (order.data.status == 'Success') {
-        counter++;
-        console.log('Orders count is: ' + colors.yellow(counter));
-        if (counter >= 100) {
-            return console.log('100 orders were executed');
+        txCount[account.address]++;
+        console.log('Orders count is: ' + colors.yellow(txCount[account.address]) + ' for wallet address: ' + colors.cyan(account.address));
+        if (txCount[account.address] >= 100) {
+            console.log('100 orders were executed for wallet: ' + colors.red(account.address));
+            for (let i = 0; i < privateKeys.length; i++) {
+                if (privateKeys[i] == account.address) {
+                    privateKeys.splice(i, 1);
+                    proxies.splice(i, 1);
+
+                    if (privateKeys.length <= 0) {
+                        return console.log(colors.bgRed("All wallets have 100 TXes"))
+                    }
+                }
+            }
         }
     }
    
