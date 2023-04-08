@@ -543,9 +543,12 @@ async function main() {
                         for (let i = 0; i < accObjects.length; i++) {
                             if (accObjects[i].hasFinished == false) {
                                 break;
-                            } else if (i != accObjects.length) {
+                            } else if (i != accObjects.length - 1) {
                                 continue;
                             } else {
+                                const saveAccObject = JSON.stringify(accObjects, null, 2);
+                                fs.writeFileSync('txCount.json', saveAccObject);
+
                                 return console.log(colors.bgRed('All wallets have 100 orders'));
                             }
                         }
@@ -564,5 +567,5 @@ async function main() {
 
 main().catch(error => {
     const saveAccObject = JSON.stringify(accObjects, null, 2);
-        fs.writeFileSync('txCount.json', saveAccObject);
+    fs.writeFileSync('txCount.json', saveAccObject);
     })
