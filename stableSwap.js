@@ -77,22 +77,35 @@ const types = {
     ]
 }
 
-const privateKeys = [];
+let accObjects = [];
 const txCount = {};
-let proxies = [];
 
 // parsing private keys and proxies from files
 function parseData() {
-    const data = fs.readFileSync('PrivateKeys.json')
-    privateKeys.push(...JSON.parse(data));
-
-    for (const privateKey of privateKeys) {
-        const acc = web3.eth.accounts.privateKeyToAccount(privateKey);
-        txCount[acc.address] = 0;
+    if (fs.existsSync('txCount.json')) {
+        const txData = fs.readFileSync('txCount.json')
+        accObjects = JSON.parse(txData);
+    } else {
+        const data = fs.readFileSync('PrivateKeys.txt').toString();
+        const keys = data.split('\n');
+        console.log(keys);
+        const proxyData = fs.readFileSync('Proxy.txt').toString();
+        const proxyArr = proxyData.split('\n');
+        console.log(proxyArr);
+        
+        for (let i = 0; i < keys.length; i++) {
+            const acc = web3.eth.accounts.privateKeyToAccount(keys[i]);
+            accObjects[i] = {
+                key: keys[i],
+                address: acc.address,
+                proxy: proxyArr[i],
+                txCount: 0,
+                hasFinished: false
+            } 
+        }
+        const accObjectsString = JSON.stringify(accObjects, null, 2);
+        fs.writeFileSync('txCount.json', accObjectsString);
     }
-
-    const proxyData = fs.readFileSync('proxy.txt').toString();
-    proxies = proxyData.split('\n');
 }
 
 // function to take 2 random tokens out of a list
@@ -131,17 +144,27 @@ async function randomizeTokens(wallet) {
 
 //function to take a random private key and make a wallet instance out of it
 function randomozeWallet() {
-    const randPrivateKey = Math.floor(Math.random() * privateKeys.length)
-    const account = web3.eth.accounts.privateKeyToAccount('0x' + privateKeys[randPrivateKey]);
+    let randPrivateKey
+    while (true) {
+        randPrivateKey = Math.floor(Math.random() * accObjects.length)
+
+        if(accObjects[randPrivateKey].hasFinished == true) {
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    const account = web3.eth.accounts.privateKeyToAccount(accObjects[randPrivateKey].key);
     web3.eth.accounts.wallet.add(account);
     web3.eth.defaultAccount = account.address;
 
-    const wallet = new ethers.Wallet('0x' + privateKeys[randPrivateKey]);
+    const wallet = new ethers.Wallet(accObjects[randPrivateKey].key);
 
-    const proxy = new SocksProxyAgent('socks://' + proxies[randPrivateKey])
+    const proxy = new SocksProxyAgent('socks://' + accObjects[randPrivateKey].proxy)
 
     console.log("Chosen wallet is: " + colors.cyan(account.address));
-    console.log("Choses proxy is: " + colors.cyan(proxies[randPrivateKey]));
+    console.log("Choses proxy is: " + colors.cyan(accObjects[randPrivateKey].proxy));
     return  {
         account,
         wallet,
@@ -430,7 +453,7 @@ async function approveTokens(amount, tokenContract, myAddress, tokenDecimals) {
 
 async function main() {
     // parsing private keys from json file on first use
-    if (privateKeys.length == 0) {
+    if (accObjects.length == 0) {
         parseData();
     }
 
@@ -497,11 +520,38 @@ async function main() {
     });
     console.log("Order status is: " + (order.data.status == "Success" ? colors.green(order.data.status) : colors.red(order.data)));
 
+    // Increment orders count and check if 100 orders for the wallet were made
+    // If 100 orders for wallet were made -> wallet object gets removed from the accObjects
+    // If no acc objects left -> script stops
     if (order.data.status == 'Success') {
-        txCount[account.address]++;
-        console.log('Orders count is: ' + colors.yellow(txCount[account.address]) + ' for wallet address: ' + colors.cyan(account.address));
-        if (txCount[account.address] >= 100) {
-            console.log('100 orders were executed for wallet: ' + colors.red(account.address));
+        for (let i = 0; i < accObjects.length; i++) {
+            if (accObjects[i].address == account.address) {
+                accObjects[i].txCount++;
+                console.log('Orders count for wallet: ' + colors.cyan(account.address) + ' is: ' + colors.yellow(accObjects[i].txCount));
+
+                if (accObjects[i].txCount >= 100) {
+                    console.log('100 orders were executed for wallet: ' + colors.red(account.address));
+
+                    // delete wallet from choosing it after 100 orders made
+                    for (let i = 0; i < accObjects.length; i++) {
+                        if (accObjects[i].address == account.address) {
+                            accObjects[i].hasFinished = true;
+                            console.log(colors.red(`Wallet was deleted from the list`))
+                        }
+
+                        // check if there are wallet left with less than 100 orders
+                        for (let i = 0; i < accObjects.length; i++) {
+                            if (accObjects[i].hasFinished == false) {
+                                break;
+                            } else if (i != accObjects.length) {
+                                continue;
+                            } else {
+                                return console.log(colors.bgRed('All wallets have 100 orders'));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
    
@@ -511,4 +561,8 @@ async function main() {
     console.log("Timeout time is set to: " + colors.yellow(Math.floor(timeoutTime / 1000)) + ' seconds.');
     console.log(" ");
 }
-main();
+
+main().catch(error => {
+    const saveAccObject = JSON.stringify(accObjects, null, 2);
+        fs.writeFileSync('txCount.json', saveAccObject);
+    })

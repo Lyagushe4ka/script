@@ -2,8 +2,6 @@
 
 yarn.lock
 
-package-lock.json
-
 ArbiScriptBinance.js
 
 work.js
@@ -12,6 +10,8 @@ StableSwaps.js
 
 test.js
 
-PrivateKeys.json
+PrivateKeys.txt
 
 proxy.txt
+
+txCount.json
