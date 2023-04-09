@@ -347,12 +347,6 @@ async function main() {
     console.log(" ");
 }
 
-main().catch(error => {
-    const saveAccObject = JSON.stringify(accObjects, null, 2);
-    fs.writeFileSync('txCount.json', saveAccObject);
-    })
-
-
 process.on('SIGINT', function() {
     console.log('Caught interrupt signal');
 
@@ -361,3 +355,8 @@ process.on('SIGINT', function() {
   
     process.exit();
 });
+
+main().catch(error => {
+    const saveAccObject = JSON.stringify(accObjects, null, 2);
+    fs.writeFileSync('txCount.json', saveAccObject);
+    })
