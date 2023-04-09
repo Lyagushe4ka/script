@@ -346,9 +346,7 @@ async function main() {
     console.log("Timeout time is set to: " + colors.yellow(Math.floor(timeoutTime / 1000)) + ' seconds.');
     console.log(" ");
 }
-main();
 
-/*
 main().catch(error => {
     const saveAccObject = JSON.stringify(accObjects, null, 2);
     fs.writeFileSync('txCount.json', saveAccObject);
@@ -363,4 +361,3 @@ process.on('SIGINT', function() {
   
     process.exit();
 });
-*/
