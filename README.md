@@ -1,17 +1,13 @@
 # script
 
-To run this script you should:
+This script was made to try to make trade orders (token swaps) using b e b o p . x y z API
 
-1. Download and install Node.js. (https://nodejs.org/en)
+This script has 2 versions - noProxy.js version (no proxy, USDC-DAI) or stableSwap.js version (with proxy, USDC-USDT-DAI)
 
-2. Download this project's folder. (Green " <> Code" button -> Download ZIP)
+To use this script you will need to install all dependencies (npm i) and create 2 files (1 if noProxy.js):
 
-3. Open termainal/console and open path to downloaded folder "cd folderPath"
+"PrivateKeys.txt" to store your private keys one on each line
 
-4. Type "npm i" and all needed dependencies will be installed
+"Proxy.txt" to store your proxies one on each line in format login:password@ip:port
 
-5. Create PrivateKeys.json file and paste in your private keys like this: ["PrivateKey1", "PrivateKey2", "PrivateKey3"]
 
-6. Download file with your proxies in format login:password@ip:port
-
-7. Run script - "node ScriptName"
