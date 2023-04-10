@@ -290,6 +290,8 @@ const erc20Abi = [
     }
 ]
 
+
+
 module.exports = {
     assets,
     domain,
