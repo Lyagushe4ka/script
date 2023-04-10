@@ -1,10 +1,3 @@
-module.exports = {
-    assets,
-    domain,
-    types,
-    erc20Abi
-}
-
 const assets = [
     {
         name: 'USDT',
@@ -296,3 +289,10 @@ const erc20Abi = [
         "type": "event"
     }
 ]
+
+module.exports = {
+    assets,
+    domain,
+    types,
+    erc20Abi
+}
