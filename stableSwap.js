@@ -4,87 +4,15 @@ const ethers = require('ethers');
 const fs = require('fs');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const colors = require('colors/safe');
+const { assets, domain, types, erc20Abi } = require('./objects')
 
 const url = "https://polygon.llamarpc.com";
 const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
-const assets = [
-    {
-        name: 'USDT',
-        address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-        decimals: 6,
-        minBalance: 5
-    },
-    {
-        name: 'DAI',
-        address: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063',
-        decimals: 18,
-        minBalance: 5
-    },
-    {
-        name: 'USDC',
-        address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-        decimals: 6,
-        minBalance: 5
-    }
-]
-
-const domain = {
-    name: 'BebopAggregationContract',
-    version: '1',
-    chainId: 137,
-    verifyingContract: "0xbeb09beb09e95e6febf0d6eeb1d0d46d1013cc3c"
-};
-
-const types = {
-    "AggregateOrder": [
-        {
-            "name": "expiry",
-            "type": "uint256"
-        },
-        {
-            "name": "taker_address",
-            "type": "address"
-        },
-        {
-            "name": "maker_addresses",
-            "type": "address[]"
-        },
-        {
-            "name": "maker_nonces",
-            "type": "uint256[]"
-        },
-        {
-            "name": "taker_tokens",
-            "type": "address[][]"
-        },
-        {
-            "name": "maker_tokens",
-            "type": "address[][]"
-        },
-        {
-            "name": "taker_amounts",
-            "type": "uint256[][]"
-        },
-        {
-            "name": "maker_amounts",
-            "type": "uint256[][]"
-        },
-        {
-            "name": "receiver",
-            "type": "address"
-        }
-    ]
-}
-
 let accObjects = [];
-let erc20Abi = [];
 
 // parsing private keys and proxies from files
 function parseData() {
-    const abi = fs.readFileSync('ERC20ABI.json');
-    erc20Abi = JSON.parse(abi);
-
     if (fs.existsSync('txCount.json')) {
         const txData = fs.readFileSync('txCount.json')
         accObjects = JSON.parse(txData);
@@ -126,8 +54,6 @@ async function randomizeTokens(wallet) {
         while (true) {
             try {
                 balance = await tokenInstance(assets[randTokenFrom].address).methods.balanceOf(wallet).call();
-                // console.log('Token is: ' + assets[randTokenFrom].name +', token balance is: ' + balance);
-                // console.log('Min balance is: ' + assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))
             } catch (err) {
                 console.log(err.message);
                 await new Promise((resolve) => {
@@ -135,7 +61,7 @@ async function randomizeTokens(wallet) {
                 });
                 continue;
             }
-            break;
+            break;а
         }
         if (balance < (assets[randTokenFrom].minBalance * (10 ** assets[randTokenFrom].decimals))) {
             continue;
@@ -339,10 +265,9 @@ async function main() {
             }
         }
     }
-   
-    let timeoutTime
     // Random interval from 3 to 21 seconds
-    setTimeout(main, timeoutTime = Math.random() * (21_000 - 3_000) + 3_000);
+    const  timeoutTime = Math.random() * (21_000 - 3_000) + 3_000;
+    setTimeout(main, timeoutTime);
     console.log("Timeout time is set to: " + colors.yellow(Math.floor(timeoutTime / 1000)) + ' seconds.');
     console.log(" ");
 }
