@@ -1,3 +1,11 @@
+const fs = require('fs');
+const Web3 = require('web3');
+
+const url = "https://polygon.llamarpc.com";
+const web3 = new Web3(new Web3.providers.HttpProvider(url));
+
+let accObjects = [];
+
 // parsing private keys and proxies from files
 function parseData() {
     if (fs.existsSync('txCount.json')) {
@@ -8,7 +16,7 @@ function parseData() {
         accObjects = JSON.parse(txData);
 
         if (accObjects.length == keys.length) {
-            return;
+            return accObjects;
         } else {
             const proxyData = fs.readFileSync('Proxy.txt').toString();
             const proxyArr = proxyData.split('\n');
@@ -25,6 +33,8 @@ function parseData() {
             }
             const accObjectsString = JSON.stringify(accObjects, null, 2);
             fs.writeFileSync('txCount.json', accObjectsString);
+
+            return accObjects;
         }
     } else {
         const data = fs.readFileSync('PrivateKeys.txt').toString();
@@ -46,6 +56,8 @@ function parseData() {
         }
         const accObjectsString = JSON.stringify(accObjects, null, 2);
         fs.writeFileSync('txCount.json', accObjectsString);
+
+        return accObjects;
     }
 }
 

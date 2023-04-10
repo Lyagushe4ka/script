@@ -10,7 +10,7 @@ const { parseData } = require('./functions');
 const url = "https://polygon.llamarpc.com";
 const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
-let accObjects = [];
+let accObjects;
 
 // function to take 2 random tokens out of a list
 async function randomizeTokens(wallet) {
@@ -136,7 +136,7 @@ async function main() {
     // parsing private keys from json file on first use
     let check = false;
     if (!check) {
-        parseData();
+        accObjects = parseData();
         check = true;
     }
 
@@ -257,6 +257,7 @@ process.on('SIGINT', function() {
 });
 
 main().catch(error => {
+    console.log(error);
     const saveAccObject = JSON.stringify(accObjects, null, 2);
     fs.writeFileSync('txCount.json', saveAccObject);
     })
