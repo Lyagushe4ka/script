@@ -256,8 +256,22 @@ process.on('SIGINT', function() {
     process.exit();
 });
 
-main().catch(error => {
-    console.log(error);
+process.on('unhandledRejection', (reason, promise) => {
+    console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+
     const saveAccObject = JSON.stringify(accObjects, null, 2);
     fs.writeFileSync('txCount.json', saveAccObject);
-    })
+
+    process.exit();
+});
+
+process.on('uncaughtException', (err, origin) => {
+    console.log(`Caught exception: ${err}\n Exception origin: ${origin}`)
+
+    const saveAccObject = JSON.stringify(accObjects, null, 2);
+    fs.writeFileSync('txCount.json', saveAccObject);
+
+    process.exit();
+});
+
+main();
