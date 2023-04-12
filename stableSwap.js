@@ -127,6 +127,7 @@ async function main() {
     console.log(" ");
 }
 
+// catching ctrl+c event
 process.on('SIGINT', function() {
     console.log('Caught interrupt signal');
 
@@ -136,6 +137,7 @@ process.on('SIGINT', function() {
     process.exit();
 });
 
+// catching unhandled promise rejection
 process.on('unhandledRejection', (reason, promise) => {
     console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 
@@ -145,6 +147,7 @@ process.on('unhandledRejection', (reason, promise) => {
     process.exit();
 });
 
+// catching uncaught exception
 process.on('uncaughtException', (err, origin) => {
     console.log(`Caught exception: ${err}\n Exception origin: ${origin}`)
 
@@ -155,8 +158,3 @@ process.on('uncaughtException', (err, origin) => {
 });
 
 main();
-
-// function to check proxy connection is stable with taking proxies from the txt file
-async function proxyChecker() {
-
-}
