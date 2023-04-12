@@ -1,14 +1,9 @@
-const Web3 = require('web3');
 const axios = require('axios');
-const ethers = require('ethers');
 const fs = require('fs');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const colors = require('colors/safe');
 const { assets, domain, types, erc20Abi } = require('./objects');
 const { parseData, randomozeWallet, randomizeTokens, approveTokens, tokenInstance } = require('./functions');
-
-const url = "https://polygon.llamarpc.com";
-const web3 = new Web3(new Web3.providers.HttpProvider(url));
 
 let accObjects;
 
