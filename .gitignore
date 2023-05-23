@@ -15,3 +15,9 @@ PrivateKeys.txt
 proxy.txt
 
 txCount.json
+
+ClaimDepositEnv.js
+
+rndSwaps.js
+
+ERC20ABI.json
